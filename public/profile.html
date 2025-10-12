@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โปรไฟล์ของฉัน | ร้านเสื้อผ้า</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="profile-page">
+
+  <div class="profile-box">
+    <h1>Profile</h1>
+
+    <!-- ชื่อผู้ใช้ -->
+    <p><strong>ชื่อ :</strong> <span id="username">-</span></p>
+
+    <!-- เบอร์โทรศัพท์ -->
+    <div class="profile-section">
+      <h2>เบอร์โทรศัพท์</h2>
+      <div class="profile-row">
+        <div id="phone-display" class="display-box"></div>
+        <input id="phone-input" type="text" class="input hidden" placeholder="กรอกเบอร์โทรศัพท์ของคุณ" />
+        <button id="edit-phone-btn" class="btn black small">แก้ไขเบอร์</button>
+        <button id="save-phone-btn" class="btn black small hidden">บันทึก</button>
+      </div>
+    </div>
+
+    <!-- ที่อยู่ -->
+    <div class="profile-section">
+      <h2>ที่อยู่</h2>
+      <div class="profile-row">
+        <div id="address-display" class="display-box hidden"></div>
+        <textarea id="address-input" class="input hidden" rows="3" placeholder="กรอกที่อยู่ของคุณ"></textarea>
+
+        <div class="btn-group">
+          <button id="edit-address-btn" class="btn black small">แก้ไขที่อยู่</button>
+          <button id="save-address-btn" class="btn black small hidden">บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ประวัติคำสั่งซื้อ -->
+    <div class="order-history">
+      <h2>ประวัติคำสั่งซื้อ</h2>
+      <div id="order-history"></div>
+    </div>
+
+    <!-- ปุ่ม -->
+    <div class="button-row">
+      <button id="home-btn" class="btn gray">กลับหน้าแรก</button>
+      <button id="logout-btn" class="btn black">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <!-- Popup ยืนยันออกจากระบบ -->
+  <div id="logout-popup" class="popup hidden">
+    <div class="popup-box">
+      <h2>ยืนยันการออกจากระบบ</h2>
+      <p>คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?</p>
+      <div class="btn-group">
+        <button id="confirm-logout" class="btn red">ยืนยัน</button>
+        <button id="cancel-logout" class="btn gray">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const username = localStorage.getItem("username") || "ไม่ระบุ";
+    document.getElementById("username").textContent = username;
+
+    const addressKey = `address_${username}`;
+    const phoneKey = `phone_${username}`;
+    const phone = localStorage.getItem(phoneKey) || "";
+    const address = localStorage.getItem(addressKey) || "";
+
+    // ===== เบอร์โทร =====
+    const phoneDisplay = document.getElementById("phone-display");
+    const editPhoneBtn = document.getElementById("edit-phone-btn");
+    const savePhoneBtn = document.getElementById("save-phone-btn");
+
+    phoneDisplay.textContent = phone || "ยังไม่ได้เพิ่มเบอร์โทรศัพท์";
+
+    editPhoneBtn.addEventListener("click", () => {
+      phoneDisplay.contentEditable = true;
+      phoneDisplay.focus();
+      phoneDisplay.style.border = "1px solid #000";
+      editPhoneBtn.classList.add("hidden");
+      savePhoneBtn.classList.remove("hidden");
+    });
+
+    savePhoneBtn.addEventListener("click", () => {
+      const newPhone = phoneDisplay.textContent.trim();
+      if (!newPhone) return alert("กรุณากรอกเบอร์โทรศัพท์ก่อนบันทึก");
+      localStorage.setItem(phoneKey, newPhone);
+      phoneDisplay.contentEditable = false;
+      phoneDisplay.style.border = "none";
+      editPhoneBtn.classList.remove("hidden");
+      savePhoneBtn.classList.add("hidden");
+    });
+
+    // ===== ที่อยู่ =====
+    const addressDisplay = document.getElementById("address-display");
+    const editAddressBtn = document.getElementById("edit-address-btn");
+    const saveAddressBtn = document.getElementById("save-address-btn");
+
+    addressDisplay.textContent = address || "ยังไม่ได้เพิ่มที่อยู่";
+    addressDisplay.classList.remove("hidden");
+
+    editAddressBtn.addEventListener("click", () => {
+      addressDisplay.contentEditable = true;
+      addressDisplay.focus();
+      addressDisplay.style.border = "1px solid #000";
+      editAddressBtn.classList.add("hidden");
+      saveAddressBtn.classList.remove("hidden");
+    });
+
+    saveAddressBtn.addEventListener("click", () => {
+      const newAddress = addressDisplay.textContent.trim();
+      if (!newAddress) return alert("กรุณากรอกที่อยู่ก่อนบันทึก");
+      localStorage.setItem(addressKey, newAddress);
+      addressDisplay.contentEditable = false;
+      addressDisplay.style.border = "none";
+      editAddressBtn.classList.remove("hidden");
+      saveAddressBtn.classList.add("hidden");
+    });
+
+    // ===== ประวัติคำสั่งซื้อ =====
+    const orderHistory = document.getElementById("order-history");
+
+    function renderOrders() {
+      const allOrders = JSON.parse(localStorage.getItem("allOrders")) || [];
+      const myOrders = allOrders.filter(order => order.username === username);
+
+      if (myOrders.length === 0) {
+        orderHistory.innerHTML = `<p class="empty">ยังไม่มีคำสั่งซื้อ</p>`;
+        return;
+      }
+
+      orderHistory.innerHTML = myOrders.map((order, i) => {
+        const total = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        return `
+          <div class="order-card">
+            <p><strong>คำสั่งซื้อ #${i + 1}</strong> (${order.date})</p>
+            ${order.items.map(item => `
+              <div class="order-item">
+                <span>${item.name} × ${item.quantity}</span>
+                <span>฿${(item.price * item.quantity).toFixed(2)}</span>
+              </div>`).join("")}
+            <p class="total">รวม: ฿${total.toFixed(2)}</p>
+            <p class="status ${order.status === "จัดส่งแล้ว" ? "green" : order.status === "กำลังแพ็ค" ? "yellow" : "blue"}">
+              สถานะ: ${order.status}
+            </p>
+          </div>
+        `;
+      }).join("");
+    }
+    renderOrders();
+
+    // ===== ออกจากระบบ =====
+    const logoutBtn = document.getElementById("logout-btn");
+    const popup = document.getElementById("logout-popup");
+    const confirmLogout = document.getElementById("confirm-logout");
+    const cancelLogout = document.getElementById("cancel-logout");
+
+    logoutBtn.addEventListener("click", () => popup.classList.remove("hidden"));
+    cancelLogout.addEventListener("click", () => popup.classList.add("hidden"));
+    confirmLogout.addEventListener("click", () => {
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("role");
+      window.location.href = "login.html";
+    });
+
+    // ===== กลับหน้าแรก =====
+    document.getElementById("home-btn").addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>

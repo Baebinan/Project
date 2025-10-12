@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shawty Shop | หน้าแรก</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+</head>
+
+<body>
+  <!-- 🔹 Navbar -->
+  <header class="navbar">
+    <div class="navbar-top">
+      <div class="logo">
+        <img src="../assets/image/star icon.jpg" alt="logo">
+        <h1>Shawty Shop</h1>
+      </div>
+
+      <div class="nav-icons">
+        <a id="cart-btn" class="cart-icon">
+          <i class="bi bi-cart3"></i>
+          <span id="cart-count">0</span>
+        </a>
+        <a id="profile-link" class="profile-icon">
+          <i class="bi bi-person-circle"></i>
+        </a>
+      </div>
+    </div>
+
+    <nav class="navbar-bottom">
+      <a href="index.html" class="active">HOME</a>
+      <a href="all.html">ALL</a>
+    </nav>
+  </header>
+
+  <!-- 🔹 Section: สินค้าแนะนำ -->
+  <main class="container">
+    <h1 class="section-title">🔥 สินค้าแนะนำ</h1>
+    <div id="product-grid" class="product-grid"></div>
+  </main>
+
+  <!-- 🔹 Popup รถเข็น -->
+  <div id="cart-popup" class="cart-popup hidden">
+    <div class="cart-content">
+      <button id="close-cart" class="close-btn">&times;</button>
+      <h2>รถเข็นของคุณ</h2>
+      <div id="cart-items" class="cart-items"></div>
+      <div class="cart-buttons">
+        <button id="checkout-btn" class="btn green">ซื้อสินค้า</button>
+        <button id="clear-cart" class="btn red">ล้างรถเข็น</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 🔹 Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const cartBtn = document.getElementById("cart-btn");
+      const cartPopup = document.getElementById("cart-popup");
+      const closeCart = document.getElementById("close-cart");
+
+      // ถ้า element ไม่เจอ ให้หยุดเลย (ป้องกัน error)
+      if (!cartBtn || !cartPopup || !closeCart) return;
+
+      // ✅ เปิด popup รถเข็น
+      cartBtn.addEventListener("click", () => {
+        cartPopup.classList.remove("hidden");
+      });
+
+      // ✅ ปิด popup เมื่อคลิกปุ่มกากบาท
+      closeCart.addEventListener("click", () => {
+        cartPopup.classList.add("hidden");
+      });
+
+      // ✅ คลิกพื้นหลังเทาให้ปิด popup ด้วย
+      cartPopup.addEventListener("click", (e) => {
+        if (e.target.id === "cart-popup") {
+          cartPopup.classList.add("hidden");
+        }
+      });
+    });
+  </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const productGrid = document.getElementById("product-grid");
+      const products = JSON.parse(localStorage.getItem("products")) || [];
+
+      // ✅ ดึงเฉพาะสินค้าที่ตั้งค่า page = "index" หรือ "both"
+      const featured = products.filter(p => p.page === "index" || p.page === "both");
+
+      if (featured.length === 0) {
+        productGrid.innerHTML = `<p class="text-center text-gray-500">ยังไม่มีสินค้าแนะนำ</p>`;
+        return;
+      }
+
+      // ✅ แสดงสินค้า
+      productGrid.innerHTML = featured.map(p => `
+        <div class="product-card">
+          <img src="${p.image}" alt="${p.name}">
+          <h2>${p.name}</h2>
+          <p>฿${p.price}</p>
+          <button class="add-to-cart">เพิ่มลงรถเข็น</button>
+        </div>
+      `).join("");
+    });
+  </script>
+</body>
+</html>
+
+</body>
+</html>

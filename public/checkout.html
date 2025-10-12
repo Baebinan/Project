@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สรุปคำสั่งซื้อ | ร้านเสื้อผ้า</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="checkout-page">
+
+  <div class="checkout-box">
+    <h1>🧾 สรุปคำสั่งซื้อ</h1>
+
+    <!-- รายการสินค้า -->
+    <div id="checkout-list" class="checkout-list"></div>
+
+    <!-- ราคารวม -->
+    <div class="checkout-total">
+      รวมทั้งหมด: <span id="total-price" class="price">฿0</span>
+    </div>
+
+    <!-- ปุ่ม -->
+    <div class="checkout-buttons">
+      <button id="back-btn" class="btn gray">ย้อนกลับ</button>
+      <button id="confirm-btn" class="btn black">ยืนยันการสั่งซื้อ</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ===== Utility =====
+    const toast = document.getElementById("toast");
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.opacity = "1";
+      setTimeout(() => (toast.style.opacity = "0"), 1500);
+    }
+
+    function getUsername() {
+      return localStorage.getItem("username") || "guest";
+    }
+
+    function getCart() {
+      const username = getUsername();
+      return JSON.parse(localStorage.getItem(`cart_${username}`)) || [];
+    }
+
+    function clearCart() {
+      const username = getUsername();
+      localStorage.removeItem(`cart_${username}`);
+    }
+
+    // ===== แสดงสินค้าในหน้า checkout =====
+    const checkoutList = document.getElementById("checkout-list");
+    const totalPriceEl = document.getElementById("total-price");
+
+    function renderCheckout() {
+      const username = getUsername();
+      const address = localStorage.getItem(`address_${username}`);
+
+      if (!address || address.trim() === "") {
+        showToast("⚠ กรุณาเพิ่มที่อยู่ในโปรไฟล์ก่อนสั่งซื้อ");
+        return;
+      }
+
+      const cart = getCart();
+      if (cart.length === 0) {
+        checkoutList.innerHTML = `<p class="empty">ไม่มีสินค้าในรถเข็น</p>`;
+        totalPriceEl.textContent = "฿0";
+        return;
+      }
+
+      let total = 0;
+      checkoutList.innerHTML = cart.map(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        return `
+          <div class="checkout-item">
+            <div>
+              <p class="item-name">${item.name}</p>
+              <p class="item-detail">฿${item.price} × ${item.quantity}</p>
+            </div>
+            <p class="item-total">฿${itemTotal.toFixed(2)}</p>
+          </div>
+        `;
+      }).join("");
+      totalPriceEl.textContent = `฿${total.toFixed(2)}`;
+    }
+
+    document.getElementById("back-btn").addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+
+    // ===== ปุ่มยืนยันการสั่งซื้อ =====
+    document.getElementById("confirm-btn").addEventListener("click", () => {
+      const username = getUsername();
+      const address = localStorage.getItem(`address_${username}`);
+      const cart = getCart();
+
+      if (cart.length === 0) {
+        showToast("ไม่มีสินค้าในรถเข็น");
+        return;
+      }
+      if (!address || address.trim() === "") {
+        showToast("⚠ กรุณาเพิ่มที่อยู่ในโปรไฟล์ก่อนทำการสั่งซื้อ");
+        return;
+      }
+
+      const newOrder = {
+        username,
+        address,
+        items: cart,
+        status: "ได้รับออเดอร์แล้ว",
+        date: new Date().toLocaleString("th-TH")
+      };
+
+      // ✅ บันทึกคำสั่งซื้อ
+      const allOrders = JSON.parse(localStorage.getItem("allOrders")) || [];
+      allOrders.push(newOrder);
+      localStorage.setItem("allOrders", JSON.stringify(allOrders));
+      
+      clearCart();
+      showToast("✅ สั่งซื้อเรียบร้อยแล้ว!");
+      setTimeout(() => (window.location.href = "index.html"), 1000);
+    });
+
+    renderCheckout();
+  </script>
+</body>
+</html>

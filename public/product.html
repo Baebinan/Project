@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จัดการสินค้า | ร้านเสื้อผ้า</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="admin-body">
+
+  <!-- 🔹 Navbar -->
+  <nav class="admin-navbar">
+    <h1>Admin</h1>
+    <div class="admin-links">
+      <a href="admin.html">คำสั่งซื้อ</a>
+      <a href="product.html" class="active">สินค้า</a>
+      <button id="logout-btn" class="logout-btn">ออกจากระบบ</button>
+    </div>
+  </nav>
+
+  <!-- 🔹 เนื้อหาหลัก -->
+  <main class="admin-main">
+    <h2>จัดการสินค้า</h2>
+
+    <section class="admin-form">
+      <h3 id="form-title">เพิ่มสินค้าใหม่</h3>
+
+      <div class="form-grid">
+        <input id="name" placeholder="ชื่อสินค้า" />
+        <input id="price" type="number" placeholder="ราคา (บาท)" />
+        <input id="stock" type="number" placeholder="จำนวนสต็อก" />
+
+        <div class="form-image">
+          <label>เลือกรูปภาพสินค้า</label>
+          <input id="image" type="file" accept="image/*" />
+        </div>
+
+        <select id="status">
+          <option value="มีสินค้า">มีสินค้า</option>
+          <option value="หมดสต็อก">หมดสต็อก</option>
+          <option value="ลดราคา">ลดราคา</option>
+        </select>
+
+        <select id="tag">
+          <option value="">ปกติ</option>
+          <option value="hot">🔥 Hot</option>
+          <option value="new">🆕 New</option>
+        </select>
+
+        <select id="page" class="wide">
+          <option value="both">แสดงทั้งหน้าแรกและทั้งหมด</option>
+          <option value="index">เฉพาะหน้าแรก (แนะนำ)</option>
+          <option value="all">เฉพาะหน้า All</option>
+        </select>
+      </div>
+
+      <div class="form-buttons">
+        <button id="reset-btn" class="gray">ล้างข้อมูล</button>
+        <button id="save-btn" class="green">บันทึกสินค้า</button>
+      </div>
+    </section>
+
+    <!-- ตารางสินค้า -->
+    <section class="product-table">
+      <h3>📋 รายการสินค้า</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>รูปภาพ</th>
+            <th>ชื่อสินค้า</th>
+            <th>ราคา</th>
+            <th>สต็อก</th>
+            <th>สถานะ</th>
+            <th>ป้าย</th>
+            <th>หน้าแสดงผล</th>
+            <th>การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="product-list"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Popup ออกจากระบบ -->
+  <div id="logout-popup" class="popup hidden">
+    <div class="popup-box">
+      <h3>ยืนยันการออกจากระบบ</h3>
+      <p>คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?</p>
+      <div class="popup-buttons">
+        <button id="confirm-logout" class="red">ยืนยัน</button>
+        <button id="cancel-logout" class="gray">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <script >
+    const nameInput = document.getElementById("name");
+    const priceInput = document.getElementById("price");
+    const stockInput = document.getElementById("stock");
+    const imageInput = document.getElementById("image");
+    const statusInput = document.getElementById("status");
+    const tagInput = document.getElementById("tag");
+    const pageInput = document.getElementById("page");
+    const saveBtn = document.getElementById("save-btn");
+    const resetBtn = document.getElementById("reset-btn");
+    const productList = document.getElementById("product-list");
+    const formTitle = document.getElementById("form-title");
+    const toast = document.getElementById("toast");
+
+    let editIndex = null;
+    let uploadedImage = "";
+
+    // ===== Toast แจ้งเตือน =====
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.style.opacity = "1";
+      setTimeout(() => (toast.style.opacity = "0"), 1500);
+    }
+
+    // ===== โหลดสินค้าใน localStorage =====
+    function getProducts() {
+      return JSON.parse(localStorage.getItem("products")) || [];
+    }
+    function saveProducts(p) {
+      localStorage.setItem("products", JSON.stringify(p));
+    }
+
+    // ===== แสดงสินค้าในตาราง =====
+    function renderProducts() {
+      const products = getProducts();
+      if (products.length === 0) {
+        productList.innerHTML = `<tr><td colspan="8" class="text-center">ยังไม่มีสินค้า</td></tr>`;
+        return;
+      }
+
+      productList.innerHTML = products.map((p, i) => `
+        <tr>
+          <td><img src="${p.image}" alt="${p.name}" style="width:60px;height:60px;object-fit:cover;border-radius:6px"></td>
+          <td>${p.name}</td>
+          <td>฿${p.price}</td>
+          <td>${p.stock}</td>
+          <td>${p.status}</td>
+          <td>${p.tag || "-"}</td>
+          <td>${p.page}</td>
+          <td>
+            <button onclick="editProduct(${i})" class="admin-btn yellow">แก้ไข</button>
+            <button onclick="deleteProduct(${i})" class="admin-btn red">ลบ</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // ===== อ่านรูปภาพที่อัปโหลด =====
+    imageInput.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          uploadedImage = event.target.result; // base64
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // ===== ปุ่มบันทึกสินค้า =====
+    saveBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      const price = parseFloat(priceInput.value);
+      const stock = parseInt(stockInput.value);
+      const image = uploadedImage || "";
+      const status = statusInput.value;
+      const tag = tagInput.value;
+      const page = pageInput.value;
+
+      if (!name || !price || !stock || !image) {
+        showToast("⚠ กรุณากรอกข้อมูลให้ครบทุกช่อง");
+        return;
+      }
+
+      const products = getProducts();
+      const newData = { name, price, stock, image, status, tag, };
+
+      if (editIndex !== null) {
+        products[editIndex] = newData;
+        showToast("✅ แก้ไขสินค้าสำเร็จ");
+      } else {
+        products.push(newData);
+        showToast("✅ เพิ่มสินค้าสำเร็จ");
+      }
+
+      saveProducts(products);
+      renderProducts();
+      clearForm();
+    });
+
+    // ===== แก้ไขสินค้า =====
+    window.editProduct = function (i) {
+      const p = getProducts()[i];
+      nameInput.value = p.name;
+      priceInput.value = p.price;
+      stockInput.value = p.stock;
+      statusInput.value = p.status;
+      tagInput.value = p.tag;
+      pageInput.value = p.page;
+      uploadedImage = p.image;
+      editIndex = i;
+      formTitle.textContent = "แก้ไขสินค้า";
+      saveBtn.textContent = "บันทึกการแก้ไข";
+    };
+
+    // ===== ลบสินค้า =====
+    window.deleteProduct = function (i) {
+      if (!confirm("คุณแน่ใจหรือไม่ว่าต้องการลบสินค้านี้?")) return;
+      const p = getProducts();
+      p.splice(i, 1);
+      saveProducts(p);
+      renderProducts();
+      showToast("🗑️ ลบสินค้าเรียบร้อย");
+    };
+
+    // ===== ล้างข้อมูลฟอร์ม =====
+    function clearForm() {
+      nameInput.value = "";
+      priceInput.value = "";
+      stockInput.value = "";
+      imageInput.value = "";
+      uploadedImage = "";
+      statusInput.value = "มีสินค้า";
+      tagInput.value = "";
+      pageInput.value = "both";
+      editIndex = null;
+      formTitle.textContent = "เพิ่มสินค้าใหม่";
+      saveBtn.textContent = "บันทึกสินค้า";
+    }
+    resetBtn.addEventListener("click", clearForm);
+
+    // ===== ออกจากระบบ =====
+    const logoutBtn = document.getElementById("logout-btn");
+    const popup = document.getElementById("logout-popup");
+    document.getElementById("cancel-logout").addEventListener("click", () => popup.classList.add("hidden"));
+    document.getElementById("confirm-logout").addEventListener("click", () => {
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("role");
+      window.location.href = "login.html";
+    });
+    logoutBtn.addEventListener("click", () => popup.classList.remove("hidden"));
+
+    // ===== เริ่มต้น =====
+    renderProducts();
+  </script>
+</body>
+</html>

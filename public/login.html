@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เข้าสู่ระบบ | ร้านเสื้อผ้า</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+
+  <div class="login-box">
+    <h2>เข้าสู่ระบบ</h2>
+
+    <div class="form-group">
+      <label for="username">ชื่อผู้ใช้</label>
+      <input id="username" type="text" placeholder="กรอกชื่อผู้ใช้">
+    </div>
+
+    <div class="form-group">
+      <label for="password">รหัสผ่าน</label>
+      <input id="password" type="password" placeholder="กรอกรหัสผ่าน">
+    </div>
+
+    <button id="loginBtn" onclick="login()">เข้าสู่ระบบ</button>
+
+    <p class="register-text">
+      ยังไม่มีบัญชี? <a href="regis.html">สมัครสมาชิก</a>
+    </p>
+
+    <p id="message" class="msg"></p>
+  </div>
+
+  <script>
+  async function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const msg = document.getElementById("message");
+
+    if (!username || !password) {
+      msg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+      msg.style.color = "red";
+      return;
+    }
+
+    // ✅ กรณี admin
+    if (username === "admin" && password === "1111") {
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("username", "admin");
+      localStorage.setItem("role", "admin");
+
+      msg.style.color = "green";
+      msg.textContent = "เข้าสู่ระบบสำเร็จ (ADMIN)";
+      setTimeout(() => window.location.href = "admin.html", 1000);
+      return;
+    }
+
+    // ✅ ผู้ใช้ทั่วไป
+    try {
+      const res = await fetch("http://localhost:3000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        msg.textContent = data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+        msg.style.color = "red";
+        return;
+      }
+
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("username", username);
+      localStorage.setItem("role", data.role || "customer");
+      localStorage.setItem("email", data.email || "");
+
+      const phoneKey = `phone_${username}`;
+      const addressKey = `address_${username}`;
+      if (!localStorage.getItem(phoneKey)) localStorage.setItem(phoneKey, data.phone || "");
+      if (!localStorage.getItem(addressKey)) localStorage.setItem(addressKey, data.address || "");
+
+      msg.style.color = "green";
+      msg.textContent = "เข้าสู่ระบบสำเร็จ";
+      setTimeout(() => window.location.href = "index.html", 1000);
+
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์";
+      msg.style.color = "red";
+    }
+  }
+
+  // ✅ กด Enter เพื่อเข้าสู่ระบบ
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") login();
+  });
+  </script>
+</body>
+</html>

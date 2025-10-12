@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จัดการคำสั่งซื้อ | แอดมิน</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <!-- 🔹 Navbar -->
+  <nav class="admin-navbar">
+    <h1>Admin</h1>
+    <div class="admin-nav-links">
+      <a href="admin.html" class="active">คำสั่งซื้อ</a>
+      <a href="product.html">สินค้า</a>
+      <button id="admin-logout-btn" class="admin-logout-btn">ออกจากระบบ</button>
+    </div>
+  </nav>
+
+  <!-- 🔹 เนื้อหา -->
+  <main class="admin-content">
+    <h2>จัดการคำสั่งซื้อ</h2>
+
+    <div class="admin-search-filter">
+      <input id="admin-search" type="text" placeholder="🔍 ค้นหาผู้ใช้ / วันที่" />
+      <div class="admin-filter-group">
+        <button class="admin-filter-btn" data-status="all">ทั้งหมด</button>
+        <button class="admin-filter-btn" data-status="ได้รับออเดอร์แล้ว">ได้รับออเดอร์แล้ว</button>
+        <button class="admin-filter-btn" data-status="กำลังแพ็ค">กำลังแพ็ค</button>
+        <button class="admin-filter-btn" data-status="จัดส่งแล้ว">จัดส่งแล้ว</button>
+      </div>
+    </div>
+
+    <div id="admin-orders-container" class="admin-orders-container"></div>
+  </main>
+
+  <!-- 🔹 Popup ยืนยันออกจากระบบ -->
+  <div id="admin-logout-popup" class="admin-popup hidden">
+    <div class="admin-popup-content">
+      <h3>ยืนยันการออกจากระบบ</h3>
+      <p>คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?</p>
+      <div class="admin-popup-buttons">
+        <button id="admin-confirm-logout" class="admin-btn red">ยืนยัน</button>
+        <button id="admin-cancel-logout" class="admin-btn gray">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+let adminCurrentFilter = "all";
+
+function loadAdminOrders() {
+  const orders = JSON.parse(localStorage.getItem("allOrders")) || [];
+  const container = document.getElementById("admin-orders-container");
+  const searchTerm = document.getElementById("admin-search")?.value.trim().toLowerCase() || "";
+
+  const filteredOrders = orders.filter(order => {
+    const matchSearch =
+      order.username.toLowerCase().includes(searchTerm) ||
+      order.date.toLowerCase().includes(searchTerm);
+    const matchStatus =
+      adminCurrentFilter === "all" ? true : order.status === adminCurrentFilter;
+    return matchSearch && matchStatus;
+  });
+
+  if (filteredOrders.length === 0) {
+    container.innerHTML = `<p class='admin-empty'>ไม่พบคำสั่งซื้อ</p>`;
+    return;
+  }
+
+  const sorted = filteredOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  container.innerHTML = sorted.map(order => `
+    <div class="admin-order-card">
+      <div class="admin-order-info">
+        <p><strong>ชื่อผู้ใช้:</strong> ${order.username}</p>
+        <p><strong>ที่อยู่:</strong> ${order.address}</p>
+        <p><strong>เบอร์โทร:</strong> ${order.phone || "-"}</p>
+        <p><strong>วันที่สั่งซื้อ:</strong> ${order.date}</p>
+        <p><strong>สถานะ:</strong>
+          <span class="admin-status ${
+            order.status === "จัดส่งแล้ว" ? "green" :
+            order.status === "กำลังแพ็ค" ? "yellow" : "blue"
+          }">${order.status}</span>
+        </p>
+      </div>
+
+      <div class="admin-item-list">
+        ${order.items.map(item => `
+          <div class="admin-item-tag">
+            ${item.name} <span>×${item.quantity}</span>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="admin-action-buttons">
+        ${order.status === "ได้รับออเดอร์แล้ว" ? `
+          <button 
+            onclick="updateAdminStatus('${order.username}','${order.date}','กำลังแพ็ค')" 
+            class="admin-btn yellow">
+            แพ็คสินค้า
+          </button>
+        ` : ""}
+        ${order.status !== "จัดส่งแล้ว" ? `
+          <button 
+            onclick="updateAdminStatus('${order.username}','${order.date}','จัดส่งแล้ว')" 
+            class="admin-btn green">
+            จัดส่ง
+          </button>
+        ` : ""}
+      </div>
+
+      ${order.status === "กำลังแพ็ค" ? `
+        <div class="shipping-info-box">
+          <h4>📦 ข้อมูลสำหรับใบปะหน้า</h4>
+          <p><strong>ชื่อ:</strong> ${order.username}</p>
+          <p><strong>เบอร์:</strong> ${order.phone || "ไม่ได้ระบุ"}</p>
+          <p><strong>ที่อยู่:</strong> ${order.address}</p>
+          <p><strong>วันที่สั่งซื้อ:</strong> ${order.date}</p>
+          <button class="copy-btn" onclick="copyShippingInfo(this)">คัดลอกข้อมูล</button>
+        </div>
+      ` : ""}
+    </div>
+  `).join("");
+}
+
+function updateAdminStatus(username, date, newStatus) {
+  const orders = JSON.parse(localStorage.getItem("allOrders")) || [];
+  const targetIndex = orders.findIndex(o => o.username === username && o.date === date);
+  if (targetIndex !== -1) {
+    orders[targetIndex].status = newStatus;
+    localStorage.setItem("allOrders", JSON.stringify(orders));
+    loadAdminOrders();
+  }
+}
+
+document.querySelectorAll(".admin-filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    adminCurrentFilter = btn.dataset.status;
+    document.querySelectorAll(".admin-filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    loadAdminOrders();
+  });
+});
+
+document.getElementById("admin-search")?.addEventListener("input", loadAdminOrders);
+
+const logoutBtn = document.getElementById("admin-logout-btn");
+const popup = document.getElementById("admin-logout-popup");
+document.getElementById("admin-cancel-logout").addEventListener("click", () => popup.classList.add("hidden"));
+document.getElementById("admin-confirm-logout").addEventListener("click", () => {
+  localStorage.removeItem("isLoggedIn");
+  localStorage.removeItem("role");
+  localStorage.removeItem("username");
+  window.location.href = "login.html";
+});
+logoutBtn.addEventListener("click", () => popup.classList.remove("hidden"));
+
+loadAdminOrders();
+
+function copyShippingInfo(btn) {
+  const box = btn.closest(".shipping-info-box");
+  const text = box.innerText.replace("📦 ข้อมูลสำหรับใบปะหน้า", "").trim();
+  navigator.clipboard.writeText(text)
+    .then(() => alert("✅ คัดลอกข้อมูลเรียบร้อย!"))
+    .catch(() => alert("❌ ไม่สามารถคัดลอกได้"));
+}
+</script>
+
+</body>
+</html>
