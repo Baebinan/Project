@@ -47,9 +47,7 @@
       <button id="close-cart" class="close-btn" aria-label="close cart">&times;</button>
       <h2>รถเข็นของคุณ</h2>
 
-      <div id="cart-items" class="cart-items">
-        <!-- รายการสินค้าในรถเข็นจะถูก render ที่นี่ -->
-      </div>
+      <div id="cart-items" class="cart-items"></div>
 
       <div class="cart-summary">
         <div class="line"></div>
@@ -81,12 +79,11 @@
       if (!cartBtn || !cartPopup || !closeCart) return;
 
       cartBtn.addEventListener("click", () => {
-        renderCart();  // เปิดแล้ว render ทุกครั้งให้ข้อมูลใหม่
+        renderCart();  // เปิดแล้ว render ทุกครั้ง
         cartPopup.classList.remove("hidden");
       });
 
       closeCart.addEventListener("click", () => cartPopup.classList.add("hidden"));
-
       cartPopup.addEventListener("click", (e) => {
         if (e.target.id === "cart-popup") cartPopup.classList.add("hidden");
       });
@@ -137,13 +134,11 @@
       function addItem(productId) {
         const user = JSON.parse(localStorage.getItem("user"));
 
-        // ❌ ยังไม่ล็อกอิน
         if (!user) {
           alert("กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าในรถเข็น");
           window.location.href = "login.html";
           return;
         }
-        // ❌ แอดมินไม่ให้เพิ่ม
         if (user.role === "admin" || user.username === "admin") {
           alert("บัญชีผู้ดูแลระบบไม่สามารถเพิ่มสินค้าในรถเข็นได้");
           return;
@@ -157,6 +152,7 @@
         if (found) {
           found.qty += 1;
         } else {
+          // เก็บ image ไว้ได้ แต่จะไม่แสดง
           cart.push({ id: product.id, name: product.name, price: Number(product.price), image: product.image, qty: 1 });
         }
         setCart(cart);
@@ -186,7 +182,7 @@
         updateCartCount();
       }
 
-      // ---------- Render รถเข็น ----------
+      // ---------- Render รถเข็น (ไม่แสดงรูป) ----------
       function renderCart() {
         const cartEl = document.getElementById("cart-items");
         const totalEl = document.getElementById("cart-total");
@@ -200,23 +196,24 @@
           return;
         }
 
-        cartEl.innerHTML = cart.map(it => `
-          <div class="cart-row" data-id="${it.id}">
-            <div class="left">
-              <img class="thumb" src="${it.image}" alt="${it.name}" />
+        cartEl.innerHTML = cart.map(it => {
+          const lineTotal = Number(it.price) * it.qty;
+          return `
+            <div class="cart-row" data-id="${it.id}">
               <div class="meta">
                 <p class="name">${it.name}</p>
-                <p class="price">฿${Number(it.price).toFixed(2)}</p>
+                <p class="unit">฿${Number(it.price).toFixed(2)} / ชิ้น</p>
+              </div>
+              <div class="controls">
+                <button class="qty-btn dec" aria-label="decrease">−</button>
+                <span class="qty">${it.qty}</span>
+                <button class="qty-btn inc" aria-label="increase">+</button>
+                <span class="line-total">฿${lineTotal.toFixed(2)}</span>
+                <button class="remove" aria-label="remove"><i class="bi bi-trash3"></i></button>
               </div>
             </div>
-            <div class="right">
-              <button class="qty-btn dec" aria-label="decrease">−</button>
-              <span class="qty">${it.qty}</span>
-              <button class="qty-btn inc" aria-label="increase">+</button>
-              <button class="remove" aria-label="remove"><i class="bi bi-trash3"></i></button>
-            </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
 
         const total = cart.reduce((sum, it) => sum + Number(it.price) * it.qty, 0);
         totalEl.textContent = `฿${total.toFixed(2)}`;
@@ -245,7 +242,7 @@
         updateCartCount();
       });
 
-      // ---------- ปุ่มซื้อ → ไป checkout.html (ต้องล็อกอิน) ----------
+      // ---------- ปุ่มซื้อ → ไป checkout.html ----------
       document.getElementById("checkout-btn").addEventListener("click", () => {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user) {
@@ -258,14 +255,13 @@
           alert("รถเข็นว่างเปล่า");
           return;
         }
-        // เก็บรายการที่จะไปใช้ในหน้า checkout
         localStorage.setItem("checkoutItems", JSON.stringify(cart));
         window.location.href = "checkout.html";
       });
 
       // เริ่มต้น
       updateCartCount();
-      window.renderCart = renderCart; // เผื่อ debug
+      window.renderCart = renderCart; // เผื่อถูกเรียกจากที่อื่นตอนเปิด popup
     });
   </script>
 
