@@ -46,7 +46,19 @@
     <div class="cart-content">
       <button id="close-cart" class="close-btn" aria-label="close cart">&times;</button>
       <h2>รถเข็นของคุณ</h2>
-      <div id="cart-items" class="cart-items"></div>
+
+      <div id="cart-items" class="cart-items">
+        <!-- รายการสินค้าในรถเข็นจะถูก render ที่นี่ -->
+      </div>
+
+      <div class="cart-summary">
+        <div class="line"></div>
+        <div class="row">
+          <span>รวมทั้งหมด</span>
+          <strong id="cart-total">฿0.00</strong>
+        </div>
+      </div>
+
       <div class="cart-buttons">
         <button id="checkout-btn" class="btn green">ซื้อสินค้า</button>
         <button id="clear-cart" class="btn red">ล้างรถเข็น</button>
@@ -58,7 +70,7 @@
   <div id="toast" class="toast"></div>
 
   <!-- ===========================
-       Script: รถเข็น
+       Script: รถเข็น (เปิด/ปิด)
   ============================ -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -68,8 +80,13 @@
 
       if (!cartBtn || !cartPopup || !closeCart) return;
 
-      cartBtn.addEventListener("click", () => cartPopup.classList.remove("hidden"));
+      cartBtn.addEventListener("click", () => {
+        renderCart();  // เปิดแล้ว render ทุกครั้งให้ข้อมูลใหม่
+        cartPopup.classList.remove("hidden");
+      });
+
       closeCart.addEventListener("click", () => cartPopup.classList.add("hidden"));
+
       cartPopup.addEventListener("click", (e) => {
         if (e.target.id === "cart-popup") cartPopup.classList.add("hidden");
       });
@@ -77,7 +94,7 @@
   </script>
 
   <!-- ===========================
-       Script: แสดงสินค้า
+       Script: แสดงสินค้า + รถเข็น + ตรวจล็อกอิน
   ============================ -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -90,19 +107,170 @@
         return;
       }
 
+      // ✅ แสดงสินค้า
       productGrid.innerHTML = featured.map(p => `
         <div class="product-card">
           <img src="${p.image}" alt="${p.name}">
           <h2>${p.name}</h2>
           <p>฿${p.price}</p>
-          <button class="add-to-cart">เพิ่มลงรถเข็น</button>
+          <button class="add-to-cart" data-id="${p.id}">เพิ่มลงรถเข็น</button>
         </div>
       `).join("");
+
+      // ---------- Utils เก็บ/อ่านรถเข็น ----------
+      const getCart = () => JSON.parse(localStorage.getItem("cart")) || [];
+      const setCart = (cart) => localStorage.setItem("cart", JSON.stringify(cart));
+
+      function updateCartCount() {
+        const total = getCart().reduce((sum, it) => sum + it.qty, 0);
+        document.getElementById("cart-count").textContent = total;
+      }
+
+      function showToast(msg) {
+        const toast = document.getElementById("toast");
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      // ---------- เพิ่มสินค้า ----------
+      function addItem(productId) {
+        const user = JSON.parse(localStorage.getItem("user"));
+
+        // ❌ ยังไม่ล็อกอิน
+        if (!user) {
+          alert("กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าในรถเข็น");
+          window.location.href = "login.html";
+          return;
+        }
+        // ❌ แอดมินไม่ให้เพิ่ม
+        if (user.role === "admin" || user.username === "admin") {
+          alert("บัญชีผู้ดูแลระบบไม่สามารถเพิ่มสินค้าในรถเข็นได้");
+          return;
+        }
+
+        const product = products.find(p => String(p.id) === String(productId));
+        if (!product) return;
+
+        const cart = getCart();
+        const found = cart.find(it => String(it.id) === String(product.id));
+        if (found) {
+          found.qty += 1;
+        } else {
+          cart.push({ id: product.id, name: product.name, price: Number(product.price), image: product.image, qty: 1 });
+        }
+        setCart(cart);
+        updateCartCount();
+        showToast("✅ เพิ่มสินค้าในรถเข็นแล้ว!");
+      }
+
+      // ---------- เปลี่ยนจำนวน / ลบ ----------
+      function changeQty(id, delta) {
+        const cart = getCart();
+        const item = cart.find(it => String(it.id) === String(id));
+        if (!item) return;
+        item.qty += delta;
+        if (item.qty <= 0) {
+          const idx = cart.findIndex(it => String(it.id) === String(id));
+          cart.splice(idx, 1);
+        }
+        setCart(cart);
+        renderCart();
+        updateCartCount();
+      }
+
+      function removeItem(id) {
+        const cart = getCart().filter(it => String(it.id) !== String(id));
+        setCart(cart);
+        renderCart();
+        updateCartCount();
+      }
+
+      // ---------- Render รถเข็น ----------
+      function renderCart() {
+        const cartEl = document.getElementById("cart-items");
+        const totalEl = document.getElementById("cart-total");
+        const cart = getCart();
+
+        if (!cartEl || !totalEl) return;
+
+        if (cart.length === 0) {
+          cartEl.innerHTML = `<p class="text-center text-gray-500">รถเข็นว่างเปล่า</p>`;
+          totalEl.textContent = "฿0.00";
+          return;
+        }
+
+        cartEl.innerHTML = cart.map(it => `
+          <div class="cart-row" data-id="${it.id}">
+            <div class="left">
+              <img class="thumb" src="${it.image}" alt="${it.name}" />
+              <div class="meta">
+                <p class="name">${it.name}</p>
+                <p class="price">฿${Number(it.price).toFixed(2)}</p>
+              </div>
+            </div>
+            <div class="right">
+              <button class="qty-btn dec" aria-label="decrease">−</button>
+              <span class="qty">${it.qty}</span>
+              <button class="qty-btn inc" aria-label="increase">+</button>
+              <button class="remove" aria-label="remove"><i class="bi bi-trash3"></i></button>
+            </div>
+          </div>
+        `).join("");
+
+        const total = cart.reduce((sum, it) => sum + Number(it.price) * it.qty, 0);
+        totalEl.textContent = `฿${total.toFixed(2)}`;
+      }
+
+      // ---------- ผูก event เพิ่มลงรถเข็น ----------
+      document.querySelectorAll(".add-to-cart").forEach(btn => {
+        btn.addEventListener("click", e => addItem(e.currentTarget.dataset.id));
+      });
+
+      // ---------- Event delegation ใน popup รถเข็น ----------
+      document.getElementById("cart-items").addEventListener("click", (e) => {
+        const row = e.target.closest(".cart-row");
+        if (!row) return;
+        const id = row.dataset.id;
+
+        if (e.target.classList.contains("inc")) changeQty(id, +1);
+        if (e.target.classList.contains("dec")) changeQty(id, -1);
+        if (e.target.classList.contains("remove") || e.target.closest(".remove")) removeItem(id);
+      });
+
+      // ---------- ปุ่มล้างรถเข็น ----------
+      document.getElementById("clear-cart").addEventListener("click", () => {
+        localStorage.removeItem("cart");
+        renderCart();
+        updateCartCount();
+      });
+
+      // ---------- ปุ่มซื้อ → ไป checkout.html (ต้องล็อกอิน) ----------
+      document.getElementById("checkout-btn").addEventListener("click", () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user) {
+          alert("กรุณาเข้าสู่ระบบก่อนทำการสั่งซื้อ");
+          window.location.href = "login.html";
+          return;
+        }
+        const cart = getCart();
+        if (cart.length === 0) {
+          alert("รถเข็นว่างเปล่า");
+          return;
+        }
+        // เก็บรายการที่จะไปใช้ในหน้า checkout
+        localStorage.setItem("checkoutItems", JSON.stringify(cart));
+        window.location.href = "checkout.html";
+      });
+
+      // เริ่มต้น
+      updateCartCount();
+      window.renderCart = renderCart; // เผื่อ debug
     });
   </script>
 
   <!-- ===========================
-       Script: โปรไฟล์ → ไปหน้า profile/login ตามสถานะ
+       Script: โปรไฟล์ → แยก admin / user / ยังไม่ล็อกอิน
   ============================ -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -111,7 +279,18 @@
 
       profileLink.addEventListener("click", () => {
         const user = JSON.parse(localStorage.getItem("user"));
-        window.location.href = user ? "profile.html" : "login.html";
+
+        if (!user) {
+          alert("กรุณาเข้าสู่ระบบก่อน");
+          window.location.href = "login.html";
+          return;
+        }
+
+        if (user.role === "admin" || user.username === "admin") {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "profile.html";
+        }
       });
     });
   </script>
