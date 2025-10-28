@@ -30,103 +30,149 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    // ===== Utility =====
+    // ---------- Utils ----------
     const toast = document.getElementById("toast");
+    const showToast = (msg) => { toast.textContent = msg; toast.classList.add("show"); setTimeout(()=>toast.classList.remove("show"), 1800); };
 
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.style.opacity = "1";
-      setTimeout(() => (toast.style.opacity = "0"), 1500);
+    // อ่าน user จาก localStorage
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) {
+      alert("กรุณาเข้าสู่ระบบก่อนทำการสั่งซื้อ");
+      window.location.href = "login.html";
+    }
+    if (user && (user.role === "admin" || user.username === "admin")) {
+      alert("แอดมินไม่สามารถทำการสั่งซื้อได้");
+      window.location.href = "admin.html";
     }
 
-    function getUsername() {
-      return localStorage.getItem("username") || "guest";
-    }
-
-    function getCart() {
-      const username = getUsername();
-      return JSON.parse(localStorage.getItem(`cart_${username}`)) || [];
-    }
-
-    function clearCart() {
-      const username = getUsername();
-      localStorage.removeItem(`cart_${username}`);
-    }
-
-    // ===== แสดงสินค้าในหน้า checkout =====
     const checkoutList = document.getElementById("checkout-list");
     const totalPriceEl = document.getElementById("total-price");
 
-    function renderCheckout() {
-      const username = getUsername();
-      const address = localStorage.getItem(`address_${username}`);
-
-      if (!address || address.trim() === "") {
-        showToast("⚠ กรุณาเพิ่มที่อยู่ในโปรไฟล์ก่อนสั่งซื้อ");
-        return;
+    // รับ items จาก checkoutItems (ที่ตั้งไว้ตอนกด “ซื้อสินค้า” ใน index)
+    function getCheckoutItems() {
+      let items = JSON.parse(localStorage.getItem("checkoutItems")) || [];
+      // ถ้าไม่มี checkoutItems ให้ fallback ไป cart
+      if (!items.length) {
+        items = JSON.parse(localStorage.getItem("cart")) || [];
       }
+      // normalize: รองรับทั้ง qty และ quantity
+      return items.map(it => ({
+        id: it.id,
+        name: it.name,
+        price: Number(it.price),
+        quantity: it.quantity != null ? it.quantity : (it.qty != null ? it.qty : 1),
+        image: it.image || ""
+      }));
+    }
 
-      const cart = getCart();
-      if (cart.length === 0) {
-        checkoutList.innerHTML = `<p class="empty">ไม่มีสินค้าในรถเข็น</p>`;
-        totalPriceEl.textContent = "฿0";
+    function setCheckoutItems(items) {
+      localStorage.setItem("checkoutItems", JSON.stringify(items));
+    }
+
+    // แสดงรายการ
+    function renderCheckout() {
+      const items = getCheckoutItems();
+
+      if (!items.length) {
+        checkoutList.innerHTML = `<p class="empty">ไม่มีสินค้าในคำสั่งซื้อ</p>`;
+        totalPriceEl.textContent = "฿0.00";
         return;
       }
 
       let total = 0;
-      checkoutList.innerHTML = cart.map(item => {
-        const itemTotal = item.price * item.quantity;
-        total += itemTotal;
+      checkoutList.innerHTML = items.map((item, idx) => {
+        const sub = item.price * item.quantity;
+        total += sub;
         return `
-          <div class="checkout-item">
-            <div>
-              <p class="item-name">${item.name}</p>
-              <p class="item-detail">฿${item.price} × ${item.quantity}</p>
+          <div class="checkout-item" data-index="${idx}">
+            <div class="left">
+              ${item.image ? `<img class="thumb" src="${item.image}" alt="${item.name}">` : ""}
+              <div>
+                <p class="item-name">${item.name}</p>
+                <p class="item-detail">฿${item.price.toFixed(2)}</p>
+              </div>
             </div>
-            <p class="item-total">฿${itemTotal.toFixed(2)}</p>
+            <div class="right">
+              <button class="qty-btn dec" aria-label="decrease">−</button>
+              <span class="qty">${item.quantity}</span>
+              <button class="qty-btn inc" aria-label="increase">+</button>
+              <span class="item-total">฿${sub.toFixed(2)}</span>
+            </div>
           </div>
         `;
       }).join("");
+
       totalPriceEl.textContent = `฿${total.toFixed(2)}`;
     }
 
+    // ปรับจำนวน +/-
+    checkoutList.addEventListener("click", (e) => {
+      const row = e.target.closest(".checkout-item");
+      if (!row) return;
+      const idx = Number(row.dataset.index);
+      const items = getCheckoutItems();
+
+      if (e.target.classList.contains("inc")) {
+        items[idx].quantity += 1;
+      }
+      if (e.target.classList.contains("dec")) {
+        items[idx].quantity -= 1;
+        if (items[idx].quantity <= 0) items.splice(idx, 1);
+      }
+      setCheckoutItems(items);
+      renderCheckout();
+    });
+
+    // ย้อนกลับ
     document.getElementById("back-btn").addEventListener("click", () => {
       window.location.href = "index.html";
     });
 
-    // ===== ปุ่มยืนยันการสั่งซื้อ =====
-    document.getElementById("confirm-btn").addEventListener("click", () => {
-      const username = getUsername();
-      const address = localStorage.getItem(`address_${username}`);
-      const cart = getCart();
-
-      if (cart.length === 0) {
-        showToast("ไม่มีสินค้าในรถเข็น");
+    // ยืนยันการสั่งซื้อ → เรียก /place-order
+    document.getElementById("confirm-btn").addEventListener("click", async () => {
+      const items = getCheckoutItems();
+      if (!items.length) {
+        showToast("ไม่มีสินค้าในคำสั่งซื้อ");
         return;
       }
-      if (!address || address.trim() === "") {
+
+      // ตรวจที่อยู่ (ถ้าเก็บไว้ใน localStorage ต่อผู้ใช้)
+      const addressKey = `address_${user.username}`;
+      const address = localStorage.getItem(addressKey) || "";
+      if (!address.trim()) {
         showToast("⚠ กรุณาเพิ่มที่อยู่ในโปรไฟล์ก่อนทำการสั่งซื้อ");
         return;
       }
 
-      const newOrder = {
-        username,
-        address,
-        items: cart,
-        status: "ได้รับออเดอร์แล้ว",
-        date: new Date().toLocaleString("th-TH")
-      };
+      try {
+        // แปลง items ให้ตรงกับ server: { name, price }
+        const payloadItems = items.map(i => ({ name: i.name, price: i.price }));
 
-      // ✅ บันทึกคำสั่งซื้อ
-      const allOrders = JSON.parse(localStorage.getItem("allOrders")) || [];
-      allOrders.push(newOrder);
-      localStorage.setItem("allOrders", JSON.stringify(allOrders));
-      
-      clearCart();
-      showToast("✅ สั่งซื้อเรียบร้อยแล้ว!");
-      setTimeout(() => (window.location.href = "index.html"), 1000);
+        const res = await fetch("http://localhost:3000/place-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: user.username, items: payloadItems })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.message || "สั่งซื้อไม่สำเร็จ");
+          return;
+        }
+
+        // เคลียร์รถเข็น/เช็คเอาต์
+        localStorage.removeItem("cart");
+        localStorage.removeItem("checkoutItems");
+
+        showToast("✅ สั่งซื้อเรียบร้อยแล้ว!");
+        setTimeout(() => window.location.href = "index.html", 1000);
+      } catch (err) {
+        console.error(err);
+        showToast("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      }
     });
 
+    // แสดงครั้งแรก
     renderCheckout();
   </script>
 </body>
