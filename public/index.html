@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shawty Shop | หน้าแรก</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+  />
 </head>
 
 <body>
@@ -18,11 +21,11 @@
       </div>
 
       <div class="nav-icons">
-        <a id="cart-btn" class="cart-icon">
+        <a id="cart-btn" class="cart-icon" role="button" aria-label="cart">
           <i class="bi bi-cart3"></i>
           <span id="cart-count">0</span>
         </a>
-        <a id="profile-link" class="profile-icon">
+        <a id="profile-link" class="profile-icon" role="button" aria-label="profile">
           <i class="bi bi-person-circle"></i>
         </a>
       </div>
@@ -43,27 +46,41 @@
   <!-- 🔹 Popup รถเข็น -->
   <div id="cart-popup" class="cart-popup hidden">
     <div class="cart-content">
-      <button id="close-cart" class="close-btn">&times;</button>
+      <button id="close-cart" class="close-btn" aria-label="close cart">&times;</button>
       <h2>รถเข็นของคุณ</h2>
       <div id="cart-items" class="cart-items"></div>
       <div class="cart-buttons">
         <button id="checkout-btn" class="btn green">ซื้อสินค้า</button>
         <button id="clear-cart" class="btn red">ล้างรถเข็น</button>
       </div>
+    </div>
+  </div>
 
+  <!-- 🔹 Popup โปรไฟล์ (แสดงเมื่อผู้ใช้ล็อกอิน) -->
+  <div id="profile-popup" class="cart-popup hidden">
+    <div class="cart-content">
+      <button id="close-profile" class="close-btn" aria-label="close profile">&times;</button>
+      <h2>โปรไฟล์ของคุณ</h2>
+      <div id="profile-info" class="profile-info"></div>
+      <div class="cart-buttons">
+        <button id="go-profile-page" class="btn">ไปหน้าโปรไฟล์</button>
+        <button id="logout-btn" class="btn red">ออกจากระบบ</button>
+      </div>
     </div>
   </div>
 
   <!-- 🔹 Toast -->
   <div id="toast" class="toast"></div>
 
+  <!-- ===========================
+       Script: รถเข็น
+  ============================ -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const cartBtn = document.getElementById("cart-btn");
       const cartPopup = document.getElementById("cart-popup");
       const closeCart = document.getElementById("close-cart");
 
-      // ถ้า element ไม่เจอ ให้หยุดเลย (ป้องกัน error)
       if (!cartBtn || !cartPopup || !closeCart) return;
 
       // ✅ เปิด popup รถเข็น
@@ -84,6 +101,10 @@
       });
     });
   </script>
+
+  <!-- ===========================
+       Script: แสดงสินค้า
+  ============================ -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const productGrid = document.getElementById("product-grid");
@@ -108,8 +129,67 @@
       `).join("");
     });
   </script>
-</body>
-</html>
 
+  <!-- ===========================
+       Script: โปรไฟล์ (ตามที่ขอ)
+  ============================ -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const profileLink = document.getElementById("profile-link");
+      const profilePopup = document.getElementById("profile-popup");
+      const closeProfile = document.getElementById("close-profile");
+      const profileInfo = document.getElementById("profile-info");
+      const logoutBtn = document.getElementById("logout-btn");
+      const goProfilePageBtn = document.getElementById("go-profile-page");
+
+      if (!profileLink) return;
+
+      // 👉 คลิกไอคอนโปรไฟล์
+      profileLink.addEventListener("click", () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user) {
+          // ❌ ยังไม่ล็อกอิน → ไปหน้า login
+          window.location.href = "login.html";
+          return;
+        }
+
+        // ✅ ล็อกอินแล้ว → เปิด popup โปรไฟล์และแสดงข้อมูล
+        if (profilePopup && profileInfo) {
+          profileInfo.innerHTML = `
+            <p><strong>ชื่อผู้ใช้:</strong> ${user.username || "-"}</p>
+            <p><strong>อีเมล:</strong> ${user.email || "-"}</p>
+          `;
+          profilePopup.classList.remove("hidden");
+        }
+      });
+
+      // ปิด popup โปรไฟล์
+      if (closeProfile && profilePopup) {
+        closeProfile.addEventListener("click", () => profilePopup.classList.add("hidden"));
+        profilePopup.addEventListener("click", (e) => {
+          if (e.target.id === "profile-popup") {
+            profilePopup.classList.add("hidden");
+          }
+        });
+      }
+
+      // ไปหน้าโปรไฟล์เต็ม (ถ้ามี)
+      if (goProfilePageBtn) {
+        goProfilePageBtn.addEventListener("click", () => {
+          window.location.href = "profile.html";
+        });
+      }
+
+      // ออกจากระบบ
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+          localStorage.removeItem("user");
+          // ปิด popup แล้วพาไป login
+          if (profilePopup) profilePopup.classList.add("hidden");
+          window.location.href = "login.html";
+        });
+      }
+    });
+  </script>
 </body>
 </html>

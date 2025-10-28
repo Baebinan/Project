@@ -42,11 +42,10 @@
       return;
     }
 
-    // ✅ กรณี admin
-    if (username === "admin" && password === "1111") {
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("username", "admin");
-      localStorage.setItem("role", "admin");
+    // ✅ กรณี ADMIN (ชื่อ admin, รหัส 2004)
+    if (username === "admin" && password === "2004") {
+      const adminData = { username: "admin", role: "admin", email: "admin@shawtyshop.com" };
+      localStorage.setItem("user", JSON.stringify(adminData));
 
       msg.style.color = "green";
       msg.textContent = "เข้าสู่ระบบสำเร็จ (ADMIN)";
@@ -54,7 +53,7 @@
       return;
     }
 
-    // ✅ ผู้ใช้ทั่วไป
+    // ✅ กรณีผู้ใช้ทั่วไป
     try {
       const res = await fetch("http://localhost:3000/login", {
         method: "POST",
@@ -69,15 +68,15 @@
         return;
       }
 
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("username", username);
-      localStorage.setItem("role", data.role || "customer");
-      localStorage.setItem("email", data.email || "");
-
-      const phoneKey = `phone_${username}`;
-      const addressKey = `address_${username}`;
-      if (!localStorage.getItem(phoneKey)) localStorage.setItem(phoneKey, data.phone || "");
-      if (!localStorage.getItem(addressKey)) localStorage.setItem(addressKey, data.address || "");
+      // เก็บข้อมูลผู้ใช้ลง localStorage
+      const userData = {
+        username,
+        email: data.email || "",
+        role: data.role || "customer",
+        phone: data.phone || "",
+        address: data.address || ""
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
 
       msg.style.color = "green";
       msg.textContent = "เข้าสู่ระบบสำเร็จ";
